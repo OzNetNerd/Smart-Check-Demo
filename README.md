@@ -11,10 +11,11 @@ Spin up test environment in order to trial Trend Micro's Smart Check product. Th
 1. Register for a 30-day [trial licence](https://go2.trendmicro.com/geoip/trial-168).
 2. Set up your [AWS profile](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html).
 3. Create an [EC2 key](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) and download it to your machine.
-4. Install [Docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/).
-5. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) - `sudo snap install kubectl --classic`
-6. Install [Helm](https://helm.sh/docs/using_helm/#installing-helm) - `sudo snap install helm --classic`
-7. Configure Docker to run [without `sudo`](https://docs.docker.com/install/linux/linux-postinstall/)
+4. Install [aws cli](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) - `sudo snap install aws-cli --classic`
+5. Install [Docker](https://docs.docker.com/install/linux/docker-ce/ubuntu/).
+6. Install [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) - `sudo snap install kubectl --classic`
+7. Install [Helm](https://helm.sh/docs/using_helm/#installing-helm) - `sudo snap install helm --classic`
+8. Configure Docker to run [without `sudo`](https://docs.docker.com/install/linux/linux-postinstall/)
 
 ## Demo
 1. Set `AWS_PROFILE`:

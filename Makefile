@@ -1,6 +1,6 @@
 AWS_REGION?=ap-southeast-2
 STACK_NAME?=SmartCheckDemo
-REGISTRY_NAME=smart-check-demo
+IMAGE_REPO_NAME=smart-check-demo
 PASSWORD=password
 ACTIVATION_CODE=
 EC2_KEY_PATH=
@@ -15,14 +15,14 @@ validate:
 .PHONY: create-stack
 create-stack:
 	@echo Spinning up demo cluster...
-	@aws cloudformation --region ${REGION} create-stack \
+	@aws cloudformation --region ${AWS_REGION} create-stack \
 	--stack-name ${STACK_NAME} \
 	--template-url https://aws-quickstart.s3.amazonaws.com/quickstart-vmware/templates/kubernetes-cluster-with-new-vpc.template \
 	--parameters file://vars.json \
 	--capabilities CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND > \
 	/dev/null
 
-	@aws cloudformation --region ${REGION} wait stack-create-complete --stack-name ${STACK_NAME} \
+	@aws cloudformation --region ${AWS_REGION} wait stack-create-complete --stack-name ${STACK_NAME} \
 	> /dev/null
 
 .PHONY: check-key-provided
@@ -38,11 +38,11 @@ get-config:
 	@make check-key-provided
 
 	@echo Extracting IP addresses...
-	@ BASTION_PUBLIC_IP="$(shell aws cloudformation --region ${REGION} describe-stacks \
+	@ BASTION_PUBLIC_IP="$(shell aws cloudformation --region ${AWS_REGION} describe-stacks \
 	--stack-name=${STACK_NAME} \
 	--query 'Stacks[0].Outputs[?OutputKey==`BastionHostPublicIp`].OutputValue' --output text)"; \
 	echo Bastion IP is $$BASTION_PUBLIC_IP; \
-	MASTER_PRIVATE_IP="$(shell aws cloudformation --region ${REGION} describe-stacks \
+	MASTER_PRIVATE_IP="$(shell aws cloudformation --region ${AWS_REGION} describe-stacks \
 	--stack-name=${STACK_NAME} \
 	--query 'Stacks[0].Outputs[?OutputKey==`MasterPrivateIp`].OutputValue' --output text)"; \
 	echo Master private IP is $$MASTER_PRIVATE_IP; \
@@ -90,19 +90,19 @@ install-smart-check:
 	> /dev/null; \
 	fi;
 
-.PHONY: create-registry
-create-registry:
-	@echo Creating demo registry
-	@aws --region ${REGION} ecr create-repository --repository-name ${REGISTRY_NAME} > /dev/null
+.PHONY: create-image-repo
+create-image-repo:
+	@echo Creating demo image repository
+	@aws ecr create-repository --region ${AWS_REGION} --repository-name ${IMAGE_REPO_NAME} > /dev/null
 
-.PHONY: delete-registry
-delete-registry:
-	@echo Deleting demo registry
-	@aws --region ${REGION} ecr delete-repository --repository-name ${REGISTRY_NAME} --force > /dev/null
+.PHONY: delete-image-repo
+delete-image-repo:
+	@echo Deleting demo image repository
+	@aws --region ${AWS_REGION} ecr delete-repository --repository-name ${IMAGE_REPO_NAME} --force > /dev/null
 
 .PHONY: upload-images
 upload-images:
-	@echo Logging into demo registry
+	@echo Logging into demo image registry
 	@ECR_LOGIN="$(shell aws ecr get-login --no-include-email --region ${AWS_REGION})"; \
 	eval $$ECR_LOGIN > /dev/null; \
 	echo Downloading buamod/eicar; \
@@ -111,14 +111,15 @@ upload-images:
 	echo Downloading vulnerables/web-dvwa ; \
 	docker pull vulnerables/web-dvwa  > /dev/null; \
 	DVWA_HASH="$(shell docker image ls | grep vulnerables/web-dvwa | awk '{print $$3}')"; \
-	REGISTRY_URI="$(shell aws ecr describe-repositories --output text --query 'repositories[?repositoryName==`${REGISTRY_NAME}`][repositoryUri]')"; \
+	IMAGE_REPO_URI="$(shell aws ecr describe-repositories --output text --query 'repositories[?repositoryName==`${IMAGE_REPO_NAME}`][repositoryUri]')"; \
+	sleep 5\
 	echo Tagging images; \
-	docker tag $$EICAR_HASH $$REGISTRY_URI:vulnerable; \
-	docker tag $$DVWA_HASH $$REGISTRY_URI:infected; \
-	echo Uploading buamod/eicar \(vulnerable\) to demo registry; \
-	docker push $$REGISTRY_URI:vulnerable > /dev/null; \
-	echo Uploading vulnerables/web-dvwa \(infected\) to demo registry; \
-	docker push $$REGISTRY_URI:infected > /dev/null;
+	docker tag $$EICAR_HASH $$IMAGE_REPO_URI:vulnerable; \
+	docker tag $$DVWA_HASH $$IMAGE_REPO_URI:infected; \
+	echo Uploading buamod/eicar \(vulnerable\) to demo repository; \
+	docker push $$IMAGE_REPO_URI:vulnerable > /dev/null; \
+	echo Uploading vulnerables/web-dvwa \(infected\) to demo repository; \
+	docker push $$IMAGE_REPO_URI:infected > /dev/null;
 
 .PHONY: get-smart-check-details
 get-smart-check-details:
@@ -135,18 +136,18 @@ get-smart-check-details:
 
 	@echo ECR Region: ${AWS_REGION}
 
-	@ REGISTRY_ID="$(shell aws ecr describe-repositories --output text --query 'repositories[?repositoryName==`${REGISTRY_NAME}`][registryId]')"; \
+	@ REGISTRY_ID="$(shell aws ecr describe-repositories --output text --query 'repositories[?repositoryName==`${IMAGE_REPO_NAME}`][registryId]')"; \
 	echo ECR Reigstry ID: $$REGISTRY_ID
 
 	@echo ----------------------------------------------------------------------------------------------------------------
 
 .PHONY: start-demo
-start-demo: | check-key-provided validate create-registry create-stack get-config setup-tiller install-smart-check upload-images get-smart-check-details
+start-demo: | check-key-provided validate create-image-repo create-stack get-config setup-tiller install-smart-check upload-images get-smart-check-details
 
 .PHONY: update-stack
 update-stack:
 	@echo Updating demo cluster
-	@aws cloudformation --region ${REGION} update-stack \
+	@aws cloudformation --region ${AWS_REGION} update-stack \
 	--stack-name ${STACK_NAME} \
 	--template-url https://aws-quickstart.s3.amazonaws.com/quickstart-vmware/templates/kubernetes-cluster-with-new-vpc.template \
 	--parameters file://vars.json \
@@ -154,17 +155,17 @@ update-stack:
 	> /dev/null
 
 	@echo Waiting for demo cluster update to be complete
-	@aws cloudformation --region ${REGION} wait stack-update-complete --stack-name ${STACK_NAME} \
+	@aws cloudformation --region ${AWS_REGION} wait stack-update-complete --stack-name ${STACK_NAME} \
 	> /dev/null
 
 .PHONY: delete-stack
 delete-stack:
 	@echo Spinning down demo cluster...
-	@aws cloudformation --region ${REGION} delete-stack --stack-name ${STACK_NAME} \
+	@aws cloudformation --region ${AWS_REGION} delete-stack --stack-name ${STACK_NAME} \
 	> /dev/null
 
-	@aws cloudformation --region ${REGION} wait stack-delete-complete --stack-name ${STACK_NAME} \
+	@aws cloudformation --region ${AWS_REGION} wait stack-delete-complete --stack-name ${STACK_NAME} \
 	> /dev/null
 
 .PHONY: stop-demo
-stop-demo: | delete-registry delete-stack
+stop-demo: | delete-image-repo delete-stack
