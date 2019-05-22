@@ -75,7 +75,6 @@ setup-tiller:
 
 .PHONY: install-smart-check
 install-smart-check:
-
 	@echo Installing smart-check chart
 	@if [ -z ${ACTIVATION_CODE} ]; \
 	then helm install \
@@ -83,7 +82,8 @@ install-smart-check:
 	--set auth.masterPassword=${PASSWORD} \
 	https://github.com/deep-security/smartcheck-helm/archive/master.tar.gz \
 	> /dev/null; \
-	else --name deepsecurity-smartcheck \
+	else helm install \
+	--name deepsecurity-smartcheck \
 	--set auth.masterPassword=${PASSWORD} \
 	--set activationCode=${ACTIVATION_CODE} \
 	https://github.com/deep-security/smartcheck-helm/archive/master.tar.gz \
@@ -112,7 +112,7 @@ upload-images:
 	docker pull vulnerables/web-dvwa  > /dev/null; \
 	DVWA_HASH="$(shell docker image ls | grep vulnerables/web-dvwa | awk '{print $$3}')"; \
 	IMAGE_REPO_URI="$(shell aws ecr describe-repositories --output text --query 'repositories[?repositoryName==`${IMAGE_REPO_NAME}`][repositoryUri]')"; \
-	sleep 5\
+	sleep 5; \
 	echo Tagging images; \
 	docker tag $$EICAR_HASH $$IMAGE_REPO_URI:vulnerable; \
 	docker tag $$DVWA_HASH $$IMAGE_REPO_URI:infected; \
